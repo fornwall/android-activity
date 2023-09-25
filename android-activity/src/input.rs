@@ -816,3 +816,205 @@ impl<'a> InputIterator<'a> {
         self.inner.next(callback)
     }
 }
+
+/// A view into the data of a specific pointer in a motion event.
+#[derive(Debug)]
+pub struct Pointer<'a> {
+    #[cfg(feature = "game-activity")]
+    pub(crate) event: &'a MotionEvent<'a>,
+    #[cfg(feature = "game-activity")]
+    pub(crate) index: usize,
+    #[cfg(feature = "native-activity")]
+    pub(crate) ndk_pointer: ndk::event::Pointer<'a>,
+}
+
+impl<'a> Pointer<'a> {
+    #[inline]
+    pub fn pointer_index(&self) -> usize {
+        #[cfg(feature = "game-activity")]
+        {
+            self.index
+        }
+        #[cfg(feature = "native-activity")]
+        {
+            self.ndk_pointer.pointer_index()
+        }
+    }
+
+    #[inline]
+    pub fn pointer_id(&self) -> i32 {
+        #[cfg(feature = "game-activity")]
+        {
+            let pointer = &self.event.ga_event.pointers[self.index];
+            pointer.id
+        }
+        #[cfg(feature = "native-activity")]
+        {
+            self.ndk_pointer.pointer_id()
+        }
+    }
+
+    #[inline]
+    pub fn axis_value(&self, axis: Axis) -> f32 {
+        #[cfg(feature = "game-activity")]
+        {
+            let pointer = &self.event.ga_event.pointers[self.index];
+            pointer.axisValues[axis as u32 as usize]
+        }
+        #[cfg(feature = "native-activity")]
+        {
+            let value: u32 = axis.into();
+            let ndk_axis = value.try_into().unwrap();
+            self.ndk_pointer.axis_value(ndk_axis)
+        }
+    }
+
+    #[inline]
+    pub fn orientation(&self) -> f32 {
+        self.axis_value(Axis::Orientation)
+    }
+
+    #[inline]
+    pub fn pressure(&self) -> f32 {
+        self.axis_value(Axis::Pressure)
+    }
+
+    #[inline]
+    pub fn raw_x(&self) -> f32 {
+        #[cfg(feature = "game-activity")]
+        {
+            let pointer = &self.event.ga_event.pointers[self.index];
+            pointer.rawX
+        }
+        #[cfg(feature = "native-activity")]
+        {
+            self.ndk_pointer.raw_x()
+        }
+    }
+
+    #[inline]
+    pub fn raw_y(&self) -> f32 {
+        #[cfg(feature = "game-activity")]
+        {
+            let pointer = &self.event.ga_event.pointers[self.index];
+            pointer.rawY
+        }
+        #[cfg(feature = "native-activity")]
+        {
+            self.ndk_pointer.raw_y()
+        }
+    }
+
+    #[inline]
+    pub fn x(&self) -> f32 {
+        self.axis_value(Axis::X)
+    }
+
+    #[inline]
+    pub fn y(&self) -> f32 {
+        self.axis_value(Axis::Y)
+    }
+
+    #[inline]
+    pub fn size(&self) -> f32 {
+        self.axis_value(Axis::Size)
+    }
+
+    #[inline]
+    pub fn tool_major(&self) -> f32 {
+        self.axis_value(Axis::ToolMajor)
+    }
+
+    #[inline]
+    pub fn tool_minor(&self) -> f32 {
+        self.axis_value(Axis::ToolMinor)
+    }
+
+    #[inline]
+    pub fn touch_major(&self) -> f32 {
+        self.axis_value(Axis::TouchMajor)
+    }
+
+    #[inline]
+    pub fn touch_minor(&self) -> f32 {
+        self.axis_value(Axis::TouchMinor)
+    }
+
+    #[inline]
+    pub fn tool_type(&self) -> ToolType {
+        #[cfg(feature = "game-activity")]
+        {
+            let pointer = &self.event.ga_event.pointers[self.index];
+            let tool_type = pointer.toolType as u32;
+            tool_type.try_into().unwrap()
+        }
+        #[cfg(feature = "native-activity")]
+        {
+            let value: u32 = self.ndk_pointer.tool_type().into();
+            value.try_into().unwrap()
+        }
+    }
+}
+
+/// An iterator over the pointers in a [`MotionEvent`].
+#[derive(Debug)]
+pub struct PointersIter<'a> {
+    #[cfg(feature = "game-activity")]
+    pub(crate) event: &'a MotionEvent<'a>,
+    #[cfg(feature = "game-activity")]
+    pub(crate) next_index: usize,
+    #[cfg(feature = "game-activity")]
+    pub(crate) count: usize,
+    #[cfg(feature = "native-activity")]
+    pub(crate) ndk_pointers_iter: ndk::event::PointersIter<'a>,
+}
+
+impl<'a> Iterator for PointersIter<'a> {
+    type Item = Pointer<'a>;
+    fn next(&mut self) -> Option<Pointer<'a>> {
+        #[cfg(feature = "game-activity")]
+        {
+            if self.next_index < self.count {
+                let ptr = Pointer {
+                    event: self.event,
+                    index: self.next_index,
+                };
+                self.next_index += 1;
+                Some(ptr)
+            } else {
+                None
+            }
+        }
+        #[cfg(feature = "native-activity")]
+        {
+            self.ndk_pointers_iter
+                .next()
+                .map(|ndk_pointer| Pointer { ndk_pointer })
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        #[cfg(feature = "game-activity")]
+        {
+            let size = self.count - self.next_index;
+            (size, Some(size))
+        }
+        #[cfg(feature = "native-activity")]
+        {
+            self.ndk_pointers_iter.size_hint()
+        }
+    }
+}
+
+impl<'a> ExactSizeIterator for PointersIter<'a> {
+    fn len(&self) -> usize {
+        #[cfg(feature = "game-activity")]
+        {
+            self.count - self.next_index
+        }
+        #[cfg(feature = "native-activity")]
+        {
+            self.ndk_pointers_iter.len()
+        }
+    }
+}

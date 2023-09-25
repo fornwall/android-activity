@@ -1,10 +1,8 @@
 use std::marker::PhantomData;
 
-pub use ndk::event::{Pointer, PointersIter};
-
 use crate::input::{
     ButtonState, Class, EdgeFlags, KeyAction, Keycode, MetaState, MotionAction, MotionEventFlags,
-    Source,
+    Pointer, PointersIter, Source,
 };
 
 /// A motion event
@@ -99,7 +97,9 @@ impl<'a> MotionEvent<'a> {
     /// An iterator over the pointers in this motion event
     #[inline]
     pub fn pointers(&self) -> PointersIter<'_> {
-        self.ndk_event.pointers()
+        PointersIter {
+            ndk_pointers_iter: self.ndk_event.pointers(),
+        }
     }
 
     /// The pointer at a given pointer index. Panics if the pointer index is out of bounds.
@@ -107,7 +107,9 @@ impl<'a> MotionEvent<'a> {
     /// If you need to loop over all the pointers, prefer the [`pointers()`](Self::pointers) method.
     #[inline]
     pub fn pointer_at_index(&self, index: usize) -> Pointer<'_> {
-        self.ndk_event.pointer_at_index(index)
+        Pointer {
+            ndk_pointer: self.ndk_event.pointer_at_index(index),
+        }
     }
 
     /*
